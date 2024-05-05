@@ -83,6 +83,7 @@ bool VacDB::insert(Patient patient){
         //allocate memory for Patient object
         Patient* newPatient = new Patient(patient.getKey(), patient.getSerial(), patient.getUsed());
 
+        //insert and update current number of entries
         m_currentTable[index] = newPatient;
         m_currentSize++;
 
@@ -117,17 +118,29 @@ bool VacDB::remove(Patient patient){
 }
 
 const Patient VacDB::getPatient(string name, int serial) const{
-    //TODO: This function looks for the Patient object with the name and the vaccine serial number in the database, if
-    // the object is found the function returns it, otherwise the function returns empty object.
+    //return the Patient object with the passed-in name and the vaccine serial number in the database
+    for (int i = 0; i < m_currentCap; i++) {
+        if (m_currentTable[i]->getKey() == name && m_currentTable[i]->getSerial() == serial) {
+            return *m_currentTable[i];
+        }
+    }
 
-
+    //if object is not found, return empty object
+    return Patient();
 }
 
 bool VacDB::updateSerialNumber(Patient patient, int serial){
-    //TODO: This function looks for the Patient object in the database, if the object is found the function updates its
-    // serial number and returns true, otherwise the function returns false.
+    //call getPatient to search the database
+    Patient foundPatient = getPatient(patient.getKey(), patient.getSerial());
 
+    //if the returned object is empty, return false
+    if (foundPatient.getKey().empty() && foundPatient.getSerial() == 0 && !foundPatient.getUsed()) {
+        return false;
+    }
 
+    //otherwise, update its serial number and return true
+    foundPatient.setSerial(serial);
+    return true;
 }
 
 float VacDB::lambda() const {
