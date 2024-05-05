@@ -99,6 +99,6 @@ private:
     /******************************************
     * Private function declarations go here! *
     ******************************************/
-
+    void rehash();
 };
 #endif

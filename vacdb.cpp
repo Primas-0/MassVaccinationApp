@@ -46,31 +46,98 @@ VacDB::~VacDB(){
 }
 
 void VacDB::changeProbPolicy(prob_t policy){
-
+    m_newPolicy = policy;
 }
 
 bool VacDB::insert(Patient patient){
+    //check whether a duplicate patient already exists
+    for (int i = 0; i < m_currentCap; i++) {
+        if (*m_currentTable[i] == patient) {
+            return false;
+        }
+    }
+
+    //calculate index for insertion
+    unsigned int index = m_hash(patient.getKey()) % m_currentCap;
+
+    //hash collisions are resolved using the probing policy
+    int i = 0;
+    while (m_currentTable[index] != nullptr) {
+        switch (m_currProbing) {
+            case LINEAR:
+                index = (index + 1) % m_currentCap;
+                break;
+            case QUADRATIC:
+                index = (index + i * i) % m_currentCap;
+                break;
+            case DOUBLEHASH:
+                index = ((m_hash(patient.getKey()) % m_currentCap) + i * (11 - (m_hash(patient.getKey()) % 11))) %
+                        m_currentCap;
+                break;
+        }
+        i++;
+    }
+
+    //insert patient at calculated index if bucket is empty and serial number is valid
+    if (m_currentTable[index] == nullptr && (patient.getSerial() >= MINID && patient.getSerial() <= MAXID)) {
+        //allocate memory for Patient object
+        Patient* newPatient = new Patient(patient.getKey(), patient.getSerial(), patient.getUsed());
+
+        m_currentTable[index] = newPatient;
+        m_currentSize++;
+
+        //if the load factor becomes greater than 0.5 after an insertion, rehash to a new hash table
+        if (lambda() > 0.5) {
+            rehash();
+        }
+
+        return true;
+    }
+    //if a patient already exists at calculated index, do not insert and return false
+    return false;
+}
+
+void VacDB::rehash() {
+    //TODO: The incremental rehashing proceeds with scanning 25% of the table at a time and transfer any live data found
+    // to the new table. Once we transferred the live nodes in the first 25% of the table, the second 25% live data will
+    // be transferred at the next operation (insertion or removal). Once all data is transferred to the new table, the
+    // old table will be removed, and its memory will be deallocated.
+
 
 }
 
 bool VacDB::remove(Patient patient){
+    //TODO: This function removes a data point from either the current hash table or the old hash table where the object
+    // is stored. In a hash table we do not empty the bucket, we only tag it as deleted. To tag a removed bucket we can
+    // use the member variable m_used in the Patient class. To find the bucket of the object we should use the proper
+    // probing policy for the table. If the Patient object is found and is deleted, the function returns true, otherwise
+    // it returns false.
+
 
 }
 
 const Patient VacDB::getPatient(string name, int serial) const{
+    //TODO: This function looks for the Patient object with the name and the vaccine serial number in the database, if
+    // the object is found the function returns it, otherwise the function returns empty object.
+
 
 }
 
 bool VacDB::updateSerialNumber(Patient patient, int serial){
+    //TODO: This function looks for the Patient object in the database, if the object is found the function updates its
+    // serial number and returns true, otherwise the function returns false.
+
 
 }
 
 float VacDB::lambda() const {
-
+    //return load factor of current hash table
+    return float(m_currentSize) / float(m_currentCap);
 }
 
 float VacDB::deletedRatio() const {
-
+    //return the ratio of the deleted buckets to the total number of occupied buckets
+    return float(m_currNumDeleted) / float(m_currentSize);
 }
 
 void VacDB::dump() const {
