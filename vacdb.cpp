@@ -1,11 +1,48 @@
 // CMSC 341 - Spring 2024 - Project 4
 #include "vacdb.h"
 VacDB::VacDB(int size, hash_fn hash, prob_t probing = DEFPOLCY){
+    //set table size after validation
+    if (size < MINPRIME) {
+        m_currentCap = MINPRIME;
+    } else if (size > MAXPRIME) {
+        m_currentCap = MAXPRIME;
+    } else if (!isPrime(size)) {
+        m_currentCap = findNextPrime(size);
+    } else {
+        m_currentCap = size;
+    }
 
+    //initialize current member variables
+    m_hash = hash;
+    m_newPolicy = probing;
+
+    //create memory for the current table
+    m_currentTable = new Patient*[m_currentCap]();
+
+    //initialize all other member variables
+    m_currentSize = 0;
+    m_currNumDeleted = 0;
+    m_currProbing = probing;
+    m_oldTable = nullptr;
+    m_oldCap = 0;
+    m_oldSize = 0;
+    m_oldNumDeleted = 0;
+    m_oldProbing = probing;
+    m_transferIndex = 0;
 }
 
 VacDB::~VacDB(){
+    //deallocate current table and pointers
+    for (int i = 0; i < m_currentCap; i++) {
+        delete m_currentTable[i];
+    }
+    delete[] m_currentTable;
 
+    //deallocate old table and pointers
+    for (int i = 0; i < m_oldCap; i++) {
+        delete m_oldTable[i];
+    }
+    delete[] m_oldTable;
 }
 
 void VacDB::changeProbPolicy(prob_t policy){
