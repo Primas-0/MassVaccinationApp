@@ -28,7 +28,7 @@ VacDB::VacDB(int size, hash_fn hash, prob_t probing = DEFPOLCY){
     m_oldSize = 0;
     m_oldNumDeleted = 0;
     m_oldProbing = probing;
-    m_transferIndex = 0;
+    m_transferIndex = -1;
 }
 
 VacDB::~VacDB(){
@@ -61,6 +61,32 @@ bool VacDB::insert(Patient patient){
     unsigned int index = m_hash(patient.getKey()) % m_currentCap;
 
     //hash collisions are resolved using the probing policy
+    index = probe(index, patient.getKey());
+
+    //if a patient already exists at calculated index, deallocate it
+    delete m_currentTable[index];
+
+    //insert patient at calculated index if serial number is valid
+    if (patient.getSerial() >= MINID && patient.getSerial() <= MAXID) {
+        //allocate memory for Patient object
+        Patient* newPatient = new Patient(patient.getKey(), patient.getSerial(), patient.getUsed());
+
+        //insert and update current number of entries
+        m_currentTable[index] = newPatient;
+        m_currentSize++;
+
+        //if the load factor exceeds 50% after an insertion, rehash to a new hash table
+        if (lambda() > 0.5) {
+            rehash();
+        }
+
+        return true;
+    }
+    //if serial number is invalid, do not insert and return false
+    return false;
+}
+
+unsigned int VacDB::probe(unsigned int index, string key) {
     int i = 0;
     while (m_currentTable[index] != nullptr) {
         switch (m_currProbing) {
@@ -71,50 +97,116 @@ bool VacDB::insert(Patient patient){
                 index = (index + i * i) % m_currentCap;
                 break;
             case DOUBLEHASH:
-                index = ((m_hash(patient.getKey()) % m_currentCap) + i * (11 - (m_hash(patient.getKey()) % 11))) %
-                        m_currentCap;
+                index = ((m_hash(key) % m_currentCap) + i * (11 - (m_hash(key) % 11))) % m_currentCap;
                 break;
         }
         i++;
     }
-
-    //insert patient at calculated index if bucket is empty and serial number is valid
-    if (m_currentTable[index] == nullptr && (patient.getSerial() >= MINID && patient.getSerial() <= MAXID)) {
-        //allocate memory for Patient object
-        Patient* newPatient = new Patient(patient.getKey(), patient.getSerial(), patient.getUsed());
-
-        //insert and update current number of entries
-        m_currentTable[index] = newPatient;
-        m_currentSize++;
-
-        //if the load factor becomes greater than 0.5 after an insertion, rehash to a new hash table
-        if (lambda() > 0.5) {
-            rehash();
-        }
-
-        return true;
-    }
-    //if a patient already exists at calculated index, do not insert and return false
-    return false;
+    return index;
 }
 
 void VacDB::rehash() {
-    //TODO: The incremental rehashing proceeds with scanning 25% of the table at a time and transfer any live data found
-    // to the new table. Once we transferred the live nodes in the first 25% of the table, the second 25% live data will
-    // be transferred at the next operation (insertion or removal). Once all data is transferred to the new table, the
-    // old table will be removed, and its memory will be deallocated.
+    //if on initial rehash
+    if (m_transferIndex == -1) {
+        //move current table to old table
+        m_oldTable = m_currentTable;
+        m_oldCap = m_currentCap;
+        m_oldSize = m_currentSize;
+        m_oldNumDeleted = m_currNumDeleted;
+        m_oldProbing = m_currProbing;
 
+        //clear current table member variables to use as the "new" table
+        m_currentTable = nullptr;
+        m_currentCap = 0;
+        m_currentSize = 0;
+        m_currNumDeleted = 0;
+        m_currProbing = m_newPolicy;
 
+        //calculate new table capacity
+        int numDataPoints = m_oldSize - m_oldNumDeleted;
+        m_currentCap = findNextPrime(4 * numDataPoints);
+
+        m_currentTable = new Patient*[m_currentCap]();
+
+        //calculate how many data points will be transferred in each rehash
+        int percentToTransfer = floor(0.25 * numDataPoints);
+    }
+
+    //
+    int numTransferred = 0;
+
+    //
+    for (; m_transferIndex < m_oldCap || numTransferred >= percentToTransfer; m_transferIndex++) {
+        //only transfer live data to new table
+        if (!m_oldTable[m_transferIndex]->getUsed()) {
+            //calculate index for insertion
+            unsigned int newIndex = m_hash(m_oldTable[m_transferIndex]->getKey()) % m_currentCap;
+
+            //hash collisions are resolved using the probing policy
+            newIndex = probe(newIndex, m_oldTable[m_transferIndex]->getKey());
+
+            delete m_currentTable[newIndex];
+
+            //allocate memory for Patient object
+            Patient *newPatient = new Patient(m_oldTable[m_transferIndex]->getKey(),
+                                              m_oldTable[m_transferIndex]->getSerial(),
+                                              m_oldTable[m_transferIndex]->getUsed());
+
+            //insert and update current number of entries
+            m_currentTable[newIndex] = newPatient;
+            m_currentSize++;
+
+            numTransferred++;
+
+            //soft-delete data from old table after inserting into new table
+            m_oldTable[m_transferIndex]->setUsed(false);
+        }
+    }
+
+    //remove old table and deallocate its memory once all rehashing is complete
+    if (m_transferIndex == m_oldCap) {
+        for (int i = 0; i < m_oldCap; i++) {
+            delete m_oldTable[i];
+        }
+        delete[] m_oldTable;
+    }
 }
 
 bool VacDB::remove(Patient patient){
-    //TODO: This function removes a data point from either the current hash table or the old hash table where the object
-    // is stored. In a hash table we do not empty the bucket, we only tag it as deleted. To tag a removed bucket we can
-    // use the member variable m_used in the Patient class. To find the bucket of the object we should use the proper
-    // probing policy for the table. If the Patient object is found and is deleted, the function returns true, otherwise
-    // it returns false.
+    //search for patient in the current table
+    for (int i = 0; i < m_currentCap; i++) {
+        if (*m_currentTable[i] == patient) {
+            //if found, mark patient as deleted (soft-delete) and increment deleted count
+            m_currentTable[i]->setUsed(false);
+            m_currNumDeleted++;
 
+            //if the deleted ratio exceeds 80% after a deletion, rehash
+            if (deletedRatio() > 0.8) {
+                rehash();
+            }
 
+            return true;
+        }
+    }
+
+    //search for patient in the old table
+    for (int i = 0; i < m_oldCap; i++) {
+        if (*m_oldTable[i] == patient) {
+            //if found, mark patient as deleted (soft-delete) and increment deleted count
+            m_oldTable[i]->setUsed(false);
+            m_oldNumDeleted++;
+
+            //if the deleted ratio exceeds 80% after a deletion, rehash
+            if (deletedRatio() > 0.8) {
+                rehash();
+            }
+
+            return true;
+        }
+    }
+
+    //if patient is not found, return false
+    return false;
 }
 
 const Patient VacDB::getPatient(string name, int serial) const{
@@ -122,6 +214,11 @@ const Patient VacDB::getPatient(string name, int serial) const{
     for (int i = 0; i < m_currentCap; i++) {
         if (m_currentTable[i]->getKey() == name && m_currentTable[i]->getSerial() == serial) {
             return *m_currentTable[i];
+        }
+    }
+    for (int i = 0; i < m_oldCap; i++) {
+        if (m_oldTable[i]->getKey() == name && m_oldTable[i]->getSerial() == serial) {
+            return *m_oldTable[i];
         }
     }
 

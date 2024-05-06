@@ -99,6 +99,7 @@ private:
     /******************************************
     * Private function declarations go here! *
     ******************************************/
+    unsigned int probe(unsigned int index, string key);
     void rehash();
 };
 #endif
