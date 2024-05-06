@@ -75,8 +75,8 @@ bool VacDB::insert(Patient patient){
         m_currentTable[index] = newPatient;
         m_currentSize++;
 
-        //if the load factor exceeds 50% after an insertion, rehash to a new hash table
-        if (lambda() > 0.5) {
+        //if the load factor exceeds 50% after an insertion, rehash (or if rehash is already in progress, continue)
+        if (lambda() > 0.5 || m_transferIndex != -1) {
             rehash();
         }
 
@@ -106,7 +106,7 @@ unsigned int VacDB::probe(unsigned int index, string key) {
 }
 
 void VacDB::rehash() {
-    //if on initial rehash
+    //initial rehash setup
     if (m_transferIndex == -1) {
         //move current table to old table
         m_oldTable = m_currentTable;
@@ -127,16 +127,15 @@ void VacDB::rehash() {
         m_currentCap = findNextPrime(4 * numDataPoints);
 
         m_currentTable = new Patient*[m_currentCap]();
-
-        //calculate how many data points will be transferred in each rehash
-        int percentToTransfer = floor(0.25 * numDataPoints);
     }
 
-    //
+    //calculate how many data points will be transferred in each rehash
+    int percentToTransfer = floor(0.25 * m_oldCap);
+
     int numTransferred = 0;
 
-    //
-    for (; m_transferIndex < m_oldCap || numTransferred >= percentToTransfer; m_transferIndex++) {
+    //traverse through old table until it reaches the end and scan limit reached
+    for (; m_transferIndex < m_oldCap && numTransferred < percentToTransfer; m_transferIndex++) {
         //only transfer live data to new table
         if (!m_oldTable[m_transferIndex]->getUsed()) {
             //calculate index for insertion
@@ -180,8 +179,8 @@ bool VacDB::remove(Patient patient){
             m_currentTable[i]->setUsed(false);
             m_currNumDeleted++;
 
-            //if the deleted ratio exceeds 80% after a deletion, rehash
-            if (deletedRatio() > 0.8) {
+            //if the deleted ratio exceeds 80% after a deletion, rehash (or if rehash is already in progress, continue)
+            if (deletedRatio() > 0.8 || m_transferIndex != -1) {
                 rehash();
             }
 
@@ -196,8 +195,8 @@ bool VacDB::remove(Patient patient){
             m_oldTable[i]->setUsed(false);
             m_oldNumDeleted++;
 
-            //if the deleted ratio exceeds 80% after a deletion, rehash
-            if (deletedRatio() > 0.8) {
+            //if the deleted ratio exceeds 80% after a deletion, rehash (or if rehash is already in progress, continue)
+            if (deletedRatio() > 0.8 || m_transferIndex != -1) {
                 rehash();
             }
 
