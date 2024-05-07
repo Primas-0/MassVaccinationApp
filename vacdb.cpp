@@ -1,6 +1,7 @@
 // CMSC 341 - Spring 2024 - Project 4
 #include "vacdb.h"
-VacDB::VacDB(int size, hash_fn hash, prob_t probing = DEFPOLCY){
+
+VacDB::VacDB(int size, hash_fn hash, prob_t probing = DEFPOLCY) {
     //set table size after validation
     if (size < MINPRIME) {
         m_currentCap = MINPRIME;
@@ -17,7 +18,7 @@ VacDB::VacDB(int size, hash_fn hash, prob_t probing = DEFPOLCY){
     m_newPolicy = probing;
 
     //create memory for the current table
-    m_currentTable = new Patient*[m_currentCap]();
+    m_currentTable = new Patient *[m_currentCap]();
 
     //initialize all other member variables
     m_currentSize = 0;
@@ -31,7 +32,7 @@ VacDB::VacDB(int size, hash_fn hash, prob_t probing = DEFPOLCY){
     m_transferIndex = -1;
 }
 
-VacDB::~VacDB(){
+VacDB::~VacDB() {
     //deallocate current table and pointers
     for (int i = 0; i < m_currentCap; i++) {
         delete m_currentTable[i];
@@ -45,64 +46,82 @@ VacDB::~VacDB(){
     delete[] m_oldTable;
 }
 
-void VacDB::changeProbPolicy(prob_t policy){
+void VacDB::changeProbPolicy(prob_t policy) {
     m_newPolicy = policy;
 }
 
-bool VacDB::insert(Patient patient){
-    //check whether a duplicate patient already exists
-    for (int i = 0; i < m_currentCap; i++) {
-        if (*m_currentTable[i] == patient) {
-            return false;
-        }
-    }
-
+bool VacDB::insert(Patient patient) {
     //calculate index for insertion
     unsigned int index = m_hash(patient.getKey()) % m_currentCap;
 
+    bool insertSuccessFlag = false;
+
     //hash collisions are resolved using the probing policy
-    index = probe(index, patient.getKey());
+    probe(index, patient.getKey(), patient.getSerial(), true);
 
     //if a patient already exists at calculated index, deallocate it
     delete m_currentTable[index];
 
-    //insert patient at calculated index if serial number is valid
-    if (patient.getSerial() >= MINID && patient.getSerial() <= MAXID) {
+    //insert patient at calculated index if there is no duplicate and serial number is valid
+    if (!probe(index, patient.getKey(), patient.getSerial(), true) &&
+        patient.getSerial() >= MINID && patient.getSerial() <= MAXID) {
         //allocate memory for Patient object
-        Patient* newPatient = new Patient(patient.getKey(), patient.getSerial(), patient.getUsed());
+        Patient *newPatient = new Patient(patient.getKey(), patient.getSerial(), patient.getUsed());
 
         //insert and update current number of entries
         m_currentTable[index] = newPatient;
         m_currentSize++;
 
-        //if the load factor exceeds 50% after an insertion, rehash (or if rehash is already in progress, continue)
-        if (lambda() > 0.5 || m_transferIndex != -1) {
-            rehash();
-        }
-
-        return true;
+        //flag becomes true after insertion
+        insertSuccessFlag = true;
     }
+
+    //regardless of the output of the insert,
+    //if the load factor exceeds 50% after an insertion, rehash (or if rehash is already in progress, continue)
+    if (lambda() > 0.5 || m_transferIndex != -1) {
+        rehash();
+    }
+
     //if serial number is invalid, do not insert and return false
-    return false;
+    return insertSuccessFlag;
 }
 
-unsigned int VacDB::probe(unsigned int index, string key) {
-    int i = 0;
-    while (m_currentTable[index] != nullptr) {
-        switch (m_currProbing) {
+bool VacDB::probe(unsigned int &index, string key, int serial, bool isCurrentTable) const {
+    Patient **hashTable;
+    int capacity = 0;
+    prob_t probingPolicy;
+
+    if (isCurrentTable) {
+        hashTable = m_currentTable;
+        capacity = m_currentCap;
+        probingPolicy = m_currProbing;
+    } else {
+        hashTable = m_oldTable;
+        capacity = m_oldCap;
+        probingPolicy = m_oldProbing;
+    }
+
+    //loop through table until an empty slot or match is found
+    for (int i = 0; hashTable[index] != nullptr; i++) {
+        if (hashTable[index]->getKey() == key && hashTable[index]->getSerial() == serial) {
+            //match found
+            return true;
+        }
+        //increment index via probing policy
+        switch (probingPolicy) {
             case LINEAR:
-                index = (index + 1) % m_currentCap;
+                index = (index + 1) % capacity;
                 break;
             case QUADRATIC:
-                index = (index + i * i) % m_currentCap;
+                index = (index + i * i) % capacity;
                 break;
             case DOUBLEHASH:
-                index = ((m_hash(key) % m_currentCap) + i * (11 - (m_hash(key) % 11))) % m_currentCap;
+                index = ((m_hash(key) % capacity) + i * (11 - (m_hash(key) % 11))) % capacity;
                 break;
         }
-        i++;
     }
-    return index;
+    //match not found
+    return false;
 }
 
 void VacDB::rehash() {
@@ -126,7 +145,7 @@ void VacDB::rehash() {
         int numDataPoints = m_oldSize - m_oldNumDeleted;
         m_currentCap = findNextPrime(4 * numDataPoints);
 
-        m_currentTable = new Patient*[m_currentCap]();
+        m_currentTable = new Patient *[m_currentCap]();
     }
 
     //calculate how many data points will be transferred in each rehash
@@ -142,7 +161,7 @@ void VacDB::rehash() {
             unsigned int newIndex = m_hash(m_oldTable[m_transferIndex]->getKey()) % m_currentCap;
 
             //hash collisions are resolved using the probing policy
-            newIndex = probe(newIndex, m_oldTable[m_transferIndex]->getKey());
+            probe(newIndex, m_oldTable[m_transferIndex]->getKey(), m_oldTable[m_transferIndex]->getSerial(), false);
 
             delete m_currentTable[newIndex];
 
@@ -171,61 +190,47 @@ void VacDB::rehash() {
     }
 }
 
-bool VacDB::remove(Patient patient){
-    //search for patient in the current table
-    for (int i = 0; i < m_currentCap; i++) {
-        if (*m_currentTable[i] == patient) {
-            //if found, mark patient as deleted (soft-delete) and increment deleted count
-            m_currentTable[i]->setUsed(false);
-            m_currNumDeleted++;
+bool VacDB::remove(Patient patient) {
+    bool removeSuccessFlag = false;
 
-            //if the deleted ratio exceeds 80% after a deletion, rehash (or if rehash is already in progress, continue)
-            if (deletedRatio() > 0.8 || m_transferIndex != -1) {
-                rehash();
-            }
+    unsigned int index = 0;
 
-            return true;
-        }
+    //if found in either table, mark patient as deleted (soft-delete) and set success flag to true
+    if (probe(index, patient.getKey(), patient.getSerial(), true)) {
+        m_currentTable[index]->setUsed(false);
+        m_currNumDeleted++;
+        removeSuccessFlag = true;
+    } else if (probe(index, patient.getKey(), patient.getSerial(), false)) {
+        m_oldTable[index]->setUsed(false);
+        m_oldNumDeleted++;
+        removeSuccessFlag = true;
     }
 
-    //search for patient in the old table
-    for (int i = 0; i < m_oldCap; i++) {
-        if (*m_oldTable[i] == patient) {
-            //if found, mark patient as deleted (soft-delete) and increment deleted count
-            m_oldTable[i]->setUsed(false);
-            m_oldNumDeleted++;
-
-            //if the deleted ratio exceeds 80% after a deletion, rehash (or if rehash is already in progress, continue)
-            if (deletedRatio() > 0.8 || m_transferIndex != -1) {
-                rehash();
-            }
-
-            return true;
-        }
+    //regardless of the output of the remove,
+    //if the deleted ratio exceeds 80% after a deletion, rehash (or if rehash is already in progress, continue)
+    if (deletedRatio() > 0.8 || m_transferIndex != -1) {
+        rehash();
     }
 
     //if patient is not found, return false
-    return false;
+    return removeSuccessFlag;
 }
 
-const Patient VacDB::getPatient(string name, int serial) const{
+const Patient VacDB::getPatient(string name, int serial) const {
+    unsigned int index = 0;
+
     //return the Patient object with the passed-in name and the vaccine serial number in the database
-    for (int i = 0; i < m_currentCap; i++) {
-        if (m_currentTable[i]->getKey() == name && m_currentTable[i]->getSerial() == serial) {
-            return *m_currentTable[i];
-        }
-    }
-    for (int i = 0; i < m_oldCap; i++) {
-        if (m_oldTable[i]->getKey() == name && m_oldTable[i]->getSerial() == serial) {
-            return *m_oldTable[i];
-        }
+    if (probe(index, name, serial, true)) {
+        return *m_currentTable[index];
+    } else if (probe(index, name, serial, false)) {
+        return *m_oldTable[index];
     }
 
     //if object is not found, return empty object
     return Patient();
 }
 
-bool VacDB::updateSerialNumber(Patient patient, int serial){
+bool VacDB::updateSerialNumber(Patient patient, int serial) {
     //call getPatient to search the database
     Patient foundPatient = getPatient(patient.getKey(), patient.getSerial());
 
@@ -262,7 +267,7 @@ void VacDB::dump() const {
         }
 }
 
-bool VacDB::isPrime(int number){
+bool VacDB::isPrime(int number) {
     bool result = true;
     for (int i = 2; i <= number / 2; ++i) {
         if (number % i == 0) {
@@ -273,15 +278,15 @@ bool VacDB::isPrime(int number){
     return result;
 }
 
-int VacDB::findNextPrime(int current){
+int VacDB::findNextPrime(int current) {
     //we always stay within the range [MINPRIME-MAXPRIME]
     //the smallest prime starts at MINPRIME
-    if (current < MINPRIME) current = MINPRIME-1;
-    for (int i=current; i<MAXPRIME; i++) {
-        for (int j=2; j*j<=i; j++) {
+    if (current < MINPRIME) current = MINPRIME - 1;
+    for (int i = current; i < MAXPRIME; i++) {
+        for (int j = 2; j * j <= i; j++) {
             if (i % j == 0)
                 break;
-            else if (j+1 > sqrt(i) && i != current) {
+            else if (j + 1 > sqrt(i) && i != current) {
                 return i;
             }
         }
@@ -290,21 +295,21 @@ int VacDB::findNextPrime(int current){
     return MAXPRIME;
 }
 
-ostream& operator<<(ostream& sout, const Patient* patient ) {
+ostream &operator<<(ostream &sout, const Patient *patient) {
     if ((patient != nullptr) && !(patient->getKey().empty()))
-        sout << patient->getKey() << " (" << patient->getSerial() << ", "<< patient->getUsed() <<  ")";
+        sout << patient->getKey() << " (" << patient->getSerial() << ", " << patient->getUsed() << ")";
     else
         sout << "";
     return sout;
 }
 
-bool operator==(const Patient& lhs, const Patient& rhs){
+bool operator==(const Patient &lhs, const Patient &rhs) {
     // since the uniqueness of an object is defined by name and serial number
     // the equality operator considers only those two criteria
     return ((lhs.getKey() == rhs.getKey()) && (lhs.getSerial() == rhs.getSerial()));
 }
 
-bool Patient::operator==(const Patient* & rhs){
+bool Patient::operator==(const Patient *&rhs) {
     // since the uniqueness of an object is defined by name and serial number
     // the equality operator considers only those two criteria
     return ((getKey() == rhs->getKey()) && (getSerial() == rhs->getSerial()));

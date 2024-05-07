@@ -99,7 +99,7 @@ private:
     /******************************************
     * Private function declarations go here! *
     ******************************************/
-    unsigned int probe(unsigned int index, string key);
+    bool probe(unsigned int& index, string key, int serial, bool isCurrentTable) const;
     void rehash();
 };
 #endif
