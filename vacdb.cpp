@@ -52,7 +52,7 @@ void VacDB::changeProbPolicy(prob_t policy) {
 
 bool VacDB::insert(Patient patient) {
     //calculate index for insertion
-    unsigned int index = m_hash(patient.getKey()) % m_currentCap;
+    unsigned int index = 0;
 
     bool insertSuccessFlag = false;
 
@@ -105,15 +105,21 @@ bool VacDB::probe(unsigned int &index, string key, int serial, bool isCurrentTab
         probingPolicy = m_oldProbing;
     }
 
+    if (hashTable == nullptr) {
+        return false;
+    }
+
+    index = m_hash(key) % capacity;
+
     //loop through table until an empty slot or match is found
-    for (int i = 0; hashTable[index] != nullptr; i++) {
+    for (int i = 1; hashTable[index] != nullptr; i++) {
         //save first soft-deleted index in new table
-        if (!m_currentTable[index]->getUsed() && !softDeleteFound) {
+        if (hashTable == m_currentTable && !hashTable[index]->getUsed() && !softDeleteFound) {
             softDeleteFound = true;
             firstSoftDeletedIndex = index;
         }
         //if match found, return true
-        if (hashTable[index]->getKey() == key && hashTable[index]->getSerial() == serial) {
+        if (hashTable[index]->getKey() == key && hashTable[index]->getSerial() == serial && hashTable[index]->m_used) {
             return true;
         }
         //increment index via probing policy
@@ -161,6 +167,8 @@ void VacDB::rehash() {
         m_currentCap = findNextPrime(4 * numDataPoints);
 
         m_currentTable = new Patient *[m_currentCap]();
+
+        m_transferIndex = 0;
     }
 
     //calculate how many data points will be transferred in each rehash
@@ -170,20 +178,21 @@ void VacDB::rehash() {
 
     //traverse through old table until it reaches the end and scan limit reached
     for (; m_transferIndex < m_oldCap && numTransferred < percentToTransfer; m_transferIndex++) {
+        if (m_oldTable[m_transferIndex] == nullptr) {
+            continue;
+        }
         //only transfer live data to new table
-        if (!m_oldTable[m_transferIndex]->getUsed()) {
+        if (m_oldTable[m_transferIndex]->getUsed()) {
             //calculate index for insertion
-            unsigned int newIndex = m_hash(m_oldTable[m_transferIndex]->getKey()) % m_currentCap;
-
-            //hash collisions are resolved using the probing policy
-            probe(newIndex, m_oldTable[m_transferIndex]->getKey(), m_oldTable[m_transferIndex]->getSerial(), false);
-
-            delete m_currentTable[newIndex];
+            unsigned int newIndex = 0;
 
             //allocate memory for Patient object
             Patient *newPatient = new Patient(m_oldTable[m_transferIndex]->getKey(),
                                               m_oldTable[m_transferIndex]->getSerial(),
-                                              m_oldTable[m_transferIndex]->getUsed());
+                                              true);
+
+            //hash collisions are resolved using the probing policy
+            probe(newIndex, newPatient->getKey(), newPatient->getSerial(), true);
 
             //insert and update current number of entries
             m_currentTable[newIndex] = newPatient;
@@ -202,6 +211,13 @@ void VacDB::rehash() {
             delete m_oldTable[i];
         }
         delete[] m_oldTable;
+
+        m_oldTable = nullptr;
+        m_oldCap = 0;
+        m_oldSize = 0;
+        m_oldNumDeleted = 0;
+        m_oldProbing = m_currProbing;
+        m_transferIndex = -1;
     }
 }
 
