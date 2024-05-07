@@ -82,11 +82,11 @@ bool VacDB::insert(Patient patient) {
         rehash();
     }
 
-    //if serial number is invalid, do not insert and return false
     return insertSuccessFlag;
 }
 
 bool VacDB::probe(unsigned int &index, string key, int serial, bool isCurrentTable) const {
+    //declare required variables
     Patient **hashTable;
     int capacity;
     prob_t probingPolicy;
@@ -94,6 +94,7 @@ bool VacDB::probe(unsigned int &index, string key, int serial, bool isCurrentTab
     bool softDeleteFound = false;
     unsigned int firstSoftDeletedIndex = 0;
 
+    //table in question changes based on boolean passed in
     if (isCurrentTable) {
         hashTable = m_currentTable;
         capacity = m_currentCap;
@@ -128,11 +129,13 @@ bool VacDB::probe(unsigned int &index, string key, int serial, bool isCurrentTab
                 break;
         }
     }
+
     //if match not found but a soft-delete is found, index should change
     //soft-deleted index has priority over empty index
     if (softDeleteFound) {
         index = firstSoftDeletedIndex;
     }
+
     return false;
 }
 
@@ -203,11 +206,11 @@ void VacDB::rehash() {
 }
 
 bool VacDB::remove(Patient patient) {
+    //initiate required variables
     bool removeSuccessFlag = false;
-
     unsigned int index = 0;
 
-    //if found in either table, mark patient as deleted (soft-delete) and set success flag to true
+    //if patient found in either table, mark patient as deleted (soft-delete) and set success flag to true
     if (probe(index, patient.getKey(), patient.getSerial(), true)) {
         m_currentTable[index]->setUsed(false);
         m_currNumDeleted++;
