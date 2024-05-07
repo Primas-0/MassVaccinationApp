@@ -272,24 +272,39 @@ bool Tester::testFindWithNonCollidingKeys() {
     Patient foundPatient = vaccineDatabase.getPatient(patientVector[0].getKey(), patientVector[0].getSerial());
 
     //if the found patient's data matches that of the one we were looking for, test passes
-    if (foundPatient.getKey() == patientVector[0].getKey() && foundPatient.getSerial() == patientVector[0].getSerial()) {
+    if (foundPatient.getKey() == patientVector[0].getKey() &&
+        foundPatient.getSerial() == patientVector[0].getSerial()) {
         return true;
     }
     return false;
 }
 
 bool Tester::testFindWithCollidingKeys() {
-    //TODO: Test the find operation (getPatient(...) function) with several colliding keys without triggering a rehash. This also tests whether the insertion works correctly with colliding data.
-
     VacDB vaccineDatabase(MINPRIME, hashFunction, DOUBLEHASH);
 
+    Random randSerialObject(MINID, MAXID);
+
+    int patientSize = 25;
+
+    vector<Patient> patientVector;
+
     //insert colliding patients
-    Patient insertedPatient1("Ymir", 1999, true);
-    vaccineDatabase.insert(insertedPatient1);
+    for (int i = 0; i < patientSize; i++) {
+        int randSerial = randSerialObject.getRandNum();
 
-    Patient insertedPatient2("Ymir", 1099, true);
-    vaccineDatabase.insert(insertedPatient2);
+        Patient patient("Ymir", randSerial, true);
+        vaccineDatabase.insert(patient);
 
+        patientVector.push_back(patient);
+    }
+
+    //search for an inserted patient
+    Patient foundPatient = vaccineDatabase.getPatient("Ymir", patientVector[0].getSerial());
+
+    //if the found patient's data matches that of the one we were looking for, test passes
+    if (foundPatient.getKey() == "Ymir" && foundPatient.getSerial() == patientVector[0].getSerial()) {
+        return true;
+    }
     return false;
 }
 
@@ -346,8 +361,14 @@ int main() {
     } else {
         cout << "\t***Test failed!***" << endl;
     }
-    cout << "Testing getPatient (non-colliding) - ___:" << endl;
+    cout << "Testing getPatient (non-colliding data) - ___:" << endl;
     if (tester.testFindWithNonCollidingKeys()) {
+        cout << "\tTest passed!" << endl;
+    } else {
+        cout << "\t***Test failed!***" << endl;
+    }
+    cout << "Testing getPatient (colliding data) - ___:" << endl;
+    if (tester.testFindWithCollidingKeys()) {
         cout << "\tTest passed!" << endl;
     } else {
         cout << "\t***Test failed!***" << endl;
@@ -360,7 +381,7 @@ int main() {
 unsigned int hashFunction(string id) {
     const int prime = 31;
     int result = 0;
-    for (int i = 0; i < id.length(); i++) {
+    for (unsigned int i = 0; i < id.length(); i++) {
         result += id[i] * pow(prime, i);
     }
     return result;
