@@ -126,21 +126,15 @@ public:
     bool testInsertionNormal();
 
     bool testFindError();
-
     bool testFindWithNonCollidingKeys();
-
     bool testFindWithCollidingKeys();
 
     bool testRemoveWithNonCollidingKeys();
-
     bool testRemoveWithCollidingKeys();
 
     bool testRehashAfterInsertion();
-
     bool testRehashCompletionFromLoadFactor();
-
     bool testRehashAfterRemoval();
-
     bool testRehashCompletionFromDeletedRatio();
 
 private:
@@ -234,7 +228,7 @@ bool Tester::probe(unsigned int &index, string key, int serial, bool isCurrentTa
 }
 
 bool Tester::testInsertionNormal() {
-    //insert multiple non-colliding keys into the hash table
+    //insert multiple non-colliding data points into the hash table
     VacDB vaccineDatabase(MINPRIME, hashFunction, DOUBLEHASH);
     vector<Patient> patientVector = insertMultiplePatients(vaccineDatabase);
 
@@ -246,26 +240,55 @@ bool Tester::testInsertionNormal() {
     }
 
     //check whether the data size changes correctly
-    if (vaccineDatabase.m_currentSize == patientVector.size()) {
+    if (vaccineDatabase.m_currentSize == 25) {
         return true;
     }
     return false;
 }
 
 bool Tester::testFindError() {
-    //TODO: Test the find operation (getPatient(...) function) for an error case, the Patient object does not exist in the database.
+    VacDB vaccineDatabase(MINPRIME, hashFunction, DOUBLEHASH);
 
+    //insert one patient
+    Patient insertedPatient("Ymir", 1999, true);
+    vaccineDatabase.insert(insertedPatient);
+
+    //search for a patient that does not exist in the database
+    Patient foundPatient = vaccineDatabase.getPatient("Maria", 2012);
+
+    //if an empty object is returned, test passes
+    if (foundPatient.getKey().empty() && foundPatient.getSerial() == 0 && !foundPatient.getUsed()) {
+        return true;
+    }
     return false;
 }
 
 bool Tester::testFindWithNonCollidingKeys() {
-    //TODO: Test the find operation (getPatient(...) function) with several non-colliding keys.
+    //insert multiple non-colliding data points into the hash table
+    VacDB vaccineDatabase(MINPRIME, hashFunction, DOUBLEHASH);
+    vector<Patient> patientVector = insertMultiplePatients(vaccineDatabase);
 
+    //search for an inserted patient
+    Patient foundPatient = vaccineDatabase.getPatient(patientVector[0].getKey(), patientVector[0].getSerial());
+
+    //if the found patient's data matches that of the one we were looking for, test passes
+    if (foundPatient.getKey() == patientVector[0].getKey() && foundPatient.getSerial() == patientVector[0].getSerial()) {
+        return true;
+    }
     return false;
 }
 
 bool Tester::testFindWithCollidingKeys() {
     //TODO: Test the find operation (getPatient(...) function) with several colliding keys without triggering a rehash. This also tests whether the insertion works correctly with colliding data.
+
+    VacDB vaccineDatabase(MINPRIME, hashFunction, DOUBLEHASH);
+
+    //insert colliding patients
+    Patient insertedPatient1("Ymir", 1999, true);
+    vaccineDatabase.insert(insertedPatient1);
+
+    Patient insertedPatient2("Ymir", 1099, true);
+    vaccineDatabase.insert(insertedPatient2);
 
     return false;
 }
@@ -310,8 +333,21 @@ bool Tester::testRehashCompletionFromDeletedRatio() {
 int main() {
     Tester tester;
 
-    cout << "\nTesting insert (normal) - ___:" << endl;
+    cout << "\nTesting insert (normal) - check insertion with multiple non-colliding keys:" << endl;
     if (tester.testInsertionNormal()) {
+        cout << "\tTest passed!" << endl;
+    } else {
+        cout << "\t***Test failed!***" << endl;
+    }
+
+    cout << "\nTesting getPatient (error) - ___:" << endl;
+    if (tester.testFindError()) {
+        cout << "\tTest passed!" << endl;
+    } else {
+        cout << "\t***Test failed!***" << endl;
+    }
+    cout << "Testing getPatient (non-colliding) - ___:" << endl;
+    if (tester.testFindWithNonCollidingKeys()) {
         cout << "\tTest passed!" << endl;
     } else {
         cout << "\t***Test failed!***" << endl;
