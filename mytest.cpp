@@ -119,37 +119,136 @@ private:
 };
 
 
-int hashFunction(string str);
-
+unsigned int hashFunction(string str);
 
 class Tester {
 public:
     bool testInsertionNormal();
 
     bool testFindError();
+
     bool testFindWithNonCollidingKeys();
+
     bool testFindWithCollidingKeys();
 
     bool testRemoveWithNonCollidingKeys();
+
     bool testRemoveWithCollidingKeys();
 
     bool testRehashAfterInsertion();
+
     bool testRehashCompletionFromLoadFactor();
+
     bool testRehashAfterRemoval();
+
     bool testRehashCompletionFromDeletedRatio();
 
 private:
+    vector<Patient> insertMultiplePatients(VacDB &vaccineDatabase);
 
+    bool probe(unsigned int &index, string key, int serial, bool isCurrentTable, VacDB &vaccineDatabase) const;
 };
 
 
-bool Tester::testInsertionNormal() {
-    //TODO: Test the insertion operation in the hash table. The following presents a sample algorithm to test the normal insertion operation:
-    // There are some non-colliding data points in the hash table.
-    // Insert multiple non-colliding keys.
-    // Check whether they are inserted in the correct bucket (correct index).
-    // Check whether the data size changes correctly.
+vector<Patient> Tester::insertMultiplePatients(VacDB &vaccineDatabase) {
+    Random randKeyObject(97, 122);
+    Random randSerialObject(MINID, MAXID);
 
+    int patientSize = 25;
+
+    vector<Patient> patientVector;
+
+    for (int i = 0; i < patientSize; i++) {
+        string randKey = randKeyObject.getRandString(10);
+        int randSerial = randSerialObject.getRandNum();
+
+        Patient patient(randKey, randSerial, true);
+        vaccineDatabase.insert(patient);
+
+        patientVector.push_back(patient);
+    }
+    return patientVector;
+}
+
+bool Tester::probe(unsigned int &index, string key, int serial, bool isCurrentTable, VacDB &vaccineDatabase) const {
+    //declare required variables
+    Patient **hashTable;
+    int capacity;
+    prob_t probingPolicy;
+
+    bool softDeleteFound = false;
+    unsigned int firstSoftDeletedIndex = 0;
+
+    //table in question changes based on boolean passed in
+    if (isCurrentTable) {
+        hashTable = vaccineDatabase.m_currentTable;
+        capacity = vaccineDatabase.m_currentCap;
+        probingPolicy = vaccineDatabase.m_currProbing;
+    } else {
+        hashTable = vaccineDatabase.m_oldTable;
+        capacity = vaccineDatabase.m_oldCap;
+        probingPolicy = vaccineDatabase.m_oldProbing;
+    }
+
+    //if table is empty
+    if (hashTable == nullptr) {
+        return false;
+    }
+
+    //calculate initial index
+    index = vaccineDatabase.m_hash(key) % capacity;
+
+    //loop through table until an empty slot or match is found
+    for (int i = 1; hashTable[index] != nullptr; i++) {
+        //save first soft-deleted index in new table
+        if (hashTable == vaccineDatabase.m_currentTable && !hashTable[index]->getUsed() && !softDeleteFound) {
+            softDeleteFound = true;
+            firstSoftDeletedIndex = index;
+        }
+        //if match found, return true
+        if (hashTable[index]->getKey() == key && hashTable[index]->getSerial() == serial && hashTable[index]->m_used) {
+            return true;
+        }
+        //increment index via probing policy
+        switch (probingPolicy) {
+            case LINEAR:
+                index = (index + 1) % capacity;
+                break;
+            case QUADRATIC:
+                index = (index + i * i) % capacity;
+                break;
+            case DOUBLEHASH:
+                index = ((vaccineDatabase.m_hash(key) % capacity) + i * (11 - (vaccineDatabase.m_hash(key) % 11))) %
+                        capacity;
+                break;
+        }
+    }
+
+    //if match not found but a soft-delete is found, index should change
+    //soft-deleted index has priority over empty index
+    if (softDeleteFound) {
+        index = firstSoftDeletedIndex;
+    }
+
+    return false;
+}
+
+bool Tester::testInsertionNormal() {
+    //insert multiple non-colliding keys into the hash table
+    VacDB vaccineDatabase(MINPRIME, hashFunction, DOUBLEHASH);
+    vector<Patient> patientVector = insertMultiplePatients(vaccineDatabase);
+
+    //check whether they are inserted in the correct bucket (correct index)
+    for (unsigned int i = 0; i < patientVector.capacity(); i++) {
+        if (!probe(i, patientVector[i].getKey(), patientVector[i].getSerial(), true, vaccineDatabase)) {
+            return false;
+        }
+    }
+
+    //check whether the data size changes correctly
+    if (vaccineDatabase.m_currentSize == patientVector.size()) {
+        return true;
+    }
     return false;
 }
 
@@ -211,11 +310,18 @@ bool Tester::testRehashCompletionFromDeletedRatio() {
 int main() {
     Tester tester;
 
+    cout << "\nTesting insert (normal) - ___:" << endl;
+    if (tester.testInsertionNormal()) {
+        cout << "\tTest passed!" << endl;
+    } else {
+        cout << "\t***Test failed!***" << endl;
+    }
+
     return 0;
 }
 
 
-int hashFunction(string id) {
+unsigned int hashFunction(string id) {
     const int prime = 31;
     int result = 0;
     for (int i = 0; i < id.length(); i++) {
