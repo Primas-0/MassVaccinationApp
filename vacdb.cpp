@@ -63,7 +63,8 @@ bool VacDB::insert(Patient patient) {
     delete m_currentTable[index];
 
     //insert patient at calculated index if there is no duplicate and serial number is valid
-    if (!probe(index, patient.getKey(), patient.getSerial(), true) &&
+    if (!probe(index, patient.getKey(), patient.getSerial(), false) &&
+        !probe(index, patient.getKey(), patient.getSerial(), true) &&
         patient.getSerial() >= MINID && patient.getSerial() <= MAXID) {
         //allocate memory for Patient object
         Patient *newPatient = new Patient(patient.getKey(), patient.getSerial(), patient.getUsed());
@@ -121,7 +122,7 @@ bool VacDB::probe(unsigned int &index, string key, int serial, bool isCurrentTab
             firstSoftDeletedIndex = index;
         }
         //if match found, return true
-        if (hashTable[index]->getKey() == key && hashTable[index]->getSerial() == serial && hashTable[index]->m_used) {
+        if (hashTable[index]->getKey() == key && hashTable[index]->getSerial() == serial && hashTable[index]->getUsed()) {
             return true;
         }
         //increment index via probing policy
@@ -181,7 +182,7 @@ void VacDB::rehash() {
     int numTransferred = 0;
 
     //traverse through old table until it reaches the end and scan limit reached
-    for (; m_transferIndex < m_oldCap && numTransferred < percentToTransfer; m_transferIndex++) {
+    for (; m_transferIndex < m_oldCap && numTransferred < percentToTransfer; m_transferIndex++, numTransferred++) {
         //if slot is empty, move to next slot
         if (m_oldTable[m_transferIndex] == nullptr) {
             continue;
@@ -202,8 +203,6 @@ void VacDB::rehash() {
             m_currentTable[newIndex] = newPatient;
             m_currentSize++;
 
-            numTransferred++;
-
             //soft-delete data from old table after inserting into new table
             m_oldTable[m_transferIndex]->setUsed(false);
         }
@@ -220,7 +219,6 @@ void VacDB::rehash() {
         m_oldCap = 0;
         m_oldSize = 0;
         m_oldNumDeleted = 0;
-        m_oldProbing = m_currProbing;
         m_transferIndex = -1;
     }
 }
