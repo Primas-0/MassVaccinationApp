@@ -88,8 +88,11 @@ bool VacDB::insert(Patient patient) {
 
 bool VacDB::probe(unsigned int &index, string key, int serial, bool isCurrentTable) const {
     Patient **hashTable;
-    int capacity = 0;
+    int capacity;
     prob_t probingPolicy;
+
+    bool softDeleteFound = false;
+    unsigned int firstSoftDeletedIndex = 0;
 
     if (isCurrentTable) {
         hashTable = m_currentTable;
@@ -103,8 +106,13 @@ bool VacDB::probe(unsigned int &index, string key, int serial, bool isCurrentTab
 
     //loop through table until an empty slot or match is found
     for (int i = 0; hashTable[index] != nullptr; i++) {
+        //save first soft-deleted index in new table
+        if (!m_currentTable[index]->getUsed() && !softDeleteFound) {
+            softDeleteFound = true;
+            firstSoftDeletedIndex = index;
+        }
+        //if match found, return true
         if (hashTable[index]->getKey() == key && hashTable[index]->getSerial() == serial) {
-            //match found
             return true;
         }
         //increment index via probing policy
@@ -120,7 +128,11 @@ bool VacDB::probe(unsigned int &index, string key, int serial, bool isCurrentTab
                 break;
         }
     }
-    //match not found
+    //if match not found but a soft-delete is found, index should change
+    //soft-deleted index has priority over empty index
+    if (softDeleteFound) {
+        index = firstSoftDeletedIndex;
+    }
     return false;
 }
 
