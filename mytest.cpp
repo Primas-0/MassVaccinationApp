@@ -309,14 +309,42 @@ bool Tester::testFindWithCollidingKeys() {
 }
 
 bool Tester::testRemoveWithNonCollidingKeys() {
-    //TODO: Test the remove operation with a few non-colliding keys.
+    VacDB vaccineDatabase(MINPRIME, hashFunction, DOUBLEHASH);
 
+    //insert a few non-colliding data points into the hash table
+    Patient insertedPatient1("Ymir", 1234, true);
+    vaccineDatabase.insert(insertedPatient1);
+    Patient insertedPatient2("Maria", 5678, true);
+    vaccineDatabase.insert(insertedPatient2);
+    Patient insertedPatient3("Rose", 9012, true);
+    vaccineDatabase.insert(insertedPatient3);
+    Patient insertedPatient4("Shina", 3456, true);
+    vaccineDatabase.insert(insertedPatient4);
+
+    //try removing one of the patients — if successful and deleted count increases, test passes
+    if (vaccineDatabase.remove(insertedPatient1) && vaccineDatabase.m_currNumDeleted == 1) {
+        return true;
+    }
     return false;
 }
 
 bool Tester::testRemoveWithCollidingKeys() {
-    //TODO: Test the remove operation with a number of colliding keys without triggering a rehash.
+    VacDB vaccineDatabase(MINPRIME, hashFunction, DOUBLEHASH);
 
+    //insert a few colliding data points into the hash table
+    Patient insertedPatient1("Ymir", 1234, true);
+    vaccineDatabase.insert(insertedPatient1);
+    Patient insertedPatient2("Ymir", 5678, true);
+    vaccineDatabase.insert(insertedPatient2);
+    Patient insertedPatient3("Ymir", 9012, true);
+    vaccineDatabase.insert(insertedPatient3);
+    Patient insertedPatient4("Ymir", 3456, true);
+    vaccineDatabase.insert(insertedPatient4);
+
+    //try removing one of the patients — if successful and deleted count increases, test passes
+    if (vaccineDatabase.remove(insertedPatient1) && vaccineDatabase.m_currNumDeleted == 1) {
+        return true;
+    }
     return false;
 }
 
@@ -369,6 +397,44 @@ int main() {
     }
     cout << "Testing getPatient (colliding data) - ___:" << endl;
     if (tester.testFindWithCollidingKeys()) {
+        cout << "\tTest passed!" << endl;
+    } else {
+        cout << "\t***Test failed!***" << endl;
+    }
+
+    cout << "\nTesting remove (non-colliding data) - ___:" << endl;
+    if (tester.testRemoveWithNonCollidingKeys()) {
+        cout << "\tTest passed!" << endl;
+    } else {
+        cout << "\t***Test failed!***" << endl;
+    }
+    cout << "Testing remove (colliding data) - ___:" << endl;
+    if (tester.testRemoveWithCollidingKeys()) {
+        cout << "\tTest passed!" << endl;
+    } else {
+        cout << "\t***Test failed!***" << endl;
+    }
+
+    cout << "\nTesting rehash (after insertion) - ___:" << endl;
+    if (tester.testRehashAfterInsertion()) {
+        cout << "\tTest passed!" << endl;
+    } else {
+        cout << "\t***Test failed!***" << endl;
+    }
+    cout << "Testing rehash completion - ___:" << endl;
+    if (tester.testRehashCompletionFromLoadFactor()) {
+        cout << "\tTest passed!" << endl;
+    } else {
+        cout << "\t***Test failed!***" << endl;
+    }
+    cout << "Testing rehash (after removal) - ___:" << endl;
+    if (tester.testRehashAfterRemoval()) {
+        cout << "\tTest passed!" << endl;
+    } else {
+        cout << "\t***Test failed!***" << endl;
+    }
+    cout << "Testing rehash completion - ___:" << endl;
+    if (tester.testRehashCompletionFromDeletedRatio()) {
         cout << "\tTest passed!" << endl;
     } else {
         cout << "\t***Test failed!***" << endl;
