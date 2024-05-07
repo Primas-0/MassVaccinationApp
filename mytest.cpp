@@ -116,13 +116,110 @@ private:
     std::normal_distribution<> m_normdist;//normal distribution
     std::uniform_int_distribution<> m_unidist;//integer uniform distribution
     std::uniform_real_distribution<double> m_uniReal;//real uniform distribution
-
 };
+
+
+int hashFunction(string str);
+
 
 class Tester {
+public:
+    bool testInsertionNormal();
+
+    bool testFindError();
+    bool testFindWithNonCollidingKeys();
+    bool testFindWithCollidingKeys();
+
+    bool testRemoveWithNonCollidingKeys();
+    bool testRemoveWithCollidingKeys();
+
+    bool testRehashAfterInsertion();
+    bool testRehashCompletionFromLoadFactor();
+    bool testRehashAfterRemoval();
+    bool testRehashCompletionFromDeletedRatio();
+
+private:
 
 };
 
+
+bool Tester::testInsertionNormal() {
+    //TODO: Test the insertion operation in the hash table. The following presents a sample algorithm to test the normal insertion operation:
+    // There are some non-colliding data points in the hash table.
+    // Insert multiple non-colliding keys.
+    // Check whether they are inserted in the correct bucket (correct index).
+    // Check whether the data size changes correctly.
+
+    return false;
+}
+
+bool Tester::testFindError() {
+    //TODO: Test the find operation (getPatient(...) function) for an error case, the Patient object does not exist in the database.
+
+    return false;
+}
+
+bool Tester::testFindWithNonCollidingKeys() {
+    //TODO: Test the find operation (getPatient(...) function) with several non-colliding keys.
+
+    return false;
+}
+
+bool Tester::testFindWithCollidingKeys() {
+    //TODO: Test the find operation (getPatient(...) function) with several colliding keys without triggering a rehash. This also tests whether the insertion works correctly with colliding data.
+
+    return false;
+}
+
+bool Tester::testRemoveWithNonCollidingKeys() {
+    //TODO: Test the remove operation with a few non-colliding keys.
+
+    return false;
+}
+
+bool Tester::testRemoveWithCollidingKeys() {
+    //TODO: Test the remove operation with a number of colliding keys without triggering a rehash.
+
+    return false;
+}
+
+bool Tester::testRehashAfterInsertion() {
+    //TODO: Test the rehashing is triggered after a descent number of data insertion.
+
+    return false;
+}
+
+bool Tester::testRehashCompletionFromLoadFactor() {
+    //TODO: Test the rehash completion after triggering rehash due to load factor, i.e. all live data is transferred to the new table and the old table is removed.
+
+    return false;
+}
+
+bool Tester::testRehashAfterRemoval() {
+    //TODO: Test the rehashing is triggered after a descent number of data removal.
+
+    return false;
+}
+
+bool Tester::testRehashCompletionFromDeletedRatio() {
+    //TODO: Test the rehash completion after triggering rehash due to delete ratio, i.e. all live data is transferred to the new table and the old table is removed.
+
+    return false;
+}
+
+
 int main() {
+    Tester tester;
+
     return 0;
+}
+
+
+int hashFunction(string id) {
+    const int prime = 31;
+    int result = 0;
+    for (int i = 0; i < id.length(); i++) {
+        result += id[i] * pow(prime, i);
+    }
+    return result;
 }
