@@ -56,16 +56,14 @@ bool VacDB::insert(Patient patient) {
 
     bool insertSuccessFlag = false;
 
-    //hash collisions are resolved using the probing policy
-    probe(index, patient.getKey(), patient.getSerial(), true);
-
-    //if a patient already exists at calculated index, deallocate it
-    delete m_currentTable[index];
-
     //insert patient at calculated index if there is no duplicate and serial number is valid
     if (!probe(index, patient.getKey(), patient.getSerial(), false) &&
         !probe(index, patient.getKey(), patient.getSerial(), true) &&
         patient.getSerial() >= MINID && patient.getSerial() <= MAXID) {
+
+        //if a patient already exists at calculated index, deallocate it
+        delete m_currentTable[index];
+
         //allocate memory for Patient object
         Patient *newPatient = new Patient(patient.getKey(), patient.getSerial(), patient.getUsed());
 
