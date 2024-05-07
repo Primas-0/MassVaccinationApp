@@ -51,7 +51,7 @@ void VacDB::changeProbPolicy(prob_t policy) {
 }
 
 bool VacDB::insert(Patient patient) {
-    //calculate index for insertion
+    //index for insertion
     unsigned int index = 0;
 
     bool insertSuccessFlag = false;
@@ -105,10 +105,12 @@ bool VacDB::probe(unsigned int &index, string key, int serial, bool isCurrentTab
         probingPolicy = m_oldProbing;
     }
 
+    //if table is empty
     if (hashTable == nullptr) {
         return false;
     }
 
+    //calculate initial index
     index = m_hash(key) % capacity;
 
     //loop through table until an empty slot or match is found
@@ -166,8 +168,10 @@ void VacDB::rehash() {
         int numDataPoints = m_oldSize - m_oldNumDeleted;
         m_currentCap = findNextPrime(4 * numDataPoints);
 
+        //zero-initiate new table
         m_currentTable = new Patient *[m_currentCap]();
 
+        //rehash is now in progress
         m_transferIndex = 0;
     }
 
@@ -178,12 +182,12 @@ void VacDB::rehash() {
 
     //traverse through old table until it reaches the end and scan limit reached
     for (; m_transferIndex < m_oldCap && numTransferred < percentToTransfer; m_transferIndex++) {
+        //if slot is empty, move to next slot
         if (m_oldTable[m_transferIndex] == nullptr) {
             continue;
         }
         //only transfer live data to new table
         if (m_oldTable[m_transferIndex]->getUsed()) {
-            //calculate index for insertion
             unsigned int newIndex = 0;
 
             //allocate memory for Patient object
