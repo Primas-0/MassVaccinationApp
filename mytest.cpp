@@ -138,17 +138,15 @@ public:
     bool testRehashCompletionFromDeletedRatio();
 
 private:
-    vector<Patient> insertMultiplePatients(VacDB &vaccineDatabase);
+    vector<Patient> insertMultiplePatients(VacDB &vaccineDatabase, int patientSize);
 
     bool probe(unsigned int &index, string key, int serial, bool isCurrentTable, VacDB &vaccineDatabase) const;
 };
 
 
-vector<Patient> Tester::insertMultiplePatients(VacDB &vaccineDatabase) {
+vector<Patient> Tester::insertMultiplePatients(VacDB &vaccineDatabase, int patientSize) {
     Random randKeyObject(97, 122);
     Random randSerialObject(MINID, MAXID);
-
-    int patientSize = 25;
 
     vector<Patient> patientVector;
 
@@ -230,7 +228,7 @@ bool Tester::probe(unsigned int &index, string key, int serial, bool isCurrentTa
 bool Tester::testInsertionNormal() {
     //insert multiple non-colliding data points into the hash table
     VacDB vaccineDatabase(MINPRIME, hashFunction, DOUBLEHASH);
-    vector<Patient> patientVector = insertMultiplePatients(vaccineDatabase);
+    vector<Patient> patientVector = insertMultiplePatients(vaccineDatabase, 25);
 
     //check whether they are inserted in the correct bucket (correct index)
     for (unsigned int i = 0; i < patientVector.capacity(); i++) {
@@ -266,7 +264,7 @@ bool Tester::testFindError() {
 bool Tester::testFindWithNonCollidingKeys() {
     //insert multiple non-colliding data points into the hash table
     VacDB vaccineDatabase(MINPRIME, hashFunction, DOUBLEHASH);
-    vector<Patient> patientVector = insertMultiplePatients(vaccineDatabase);
+    vector<Patient> patientVector = insertMultiplePatients(vaccineDatabase, 25);
 
     //search for an inserted patient
     Patient foundPatient = vaccineDatabase.getPatient(patientVector[0].getKey(), patientVector[0].getSerial());
@@ -349,26 +347,73 @@ bool Tester::testRemoveWithCollidingKeys() {
 }
 
 bool Tester::testRehashAfterInsertion() {
-    //TODO: Test the rehashing is triggered after a descent number of data insertion.
+    VacDB vaccineDatabase(MINPRIME, hashFunction, DOUBLEHASH);
 
+    //insert 51 nodes (capacity * 0.5 + 1, exact number to trigger rehash)
+    vector<Patient> patientVector = insertMultiplePatients(vaccineDatabase, 51);
+
+    //check whether rehash has been triggered
+    if (vaccineDatabase.m_oldTable != nullptr && vaccineDatabase.m_transferIndex != -1) {
+        return true;
+    }
     return false;
 }
 
 bool Tester::testRehashCompletionFromLoadFactor() {
-    //TODO: Test the rehash completion after triggering rehash due to load factor, i.e. all live data is transferred to the new table and the old table is removed.
+    VacDB vaccineDatabase(MINPRIME, hashFunction, DOUBLEHASH);
 
+    Patient** initialPointer = vaccineDatabase.m_currentTable;
+    int initialCapacity = vaccineDatabase.m_currentCap;
+
+    //insert a large number of nodes so that rehash will finish
+    vector<Patient> patientVector = insertMultiplePatients(vaccineDatabase, 200);
+
+    Patient** finalPointer = vaccineDatabase.m_currentTable;
+    int finalCapacity = vaccineDatabase.m_currentCap;
+
+    //old table should be removed, pointer and capacity of the table before and after should be different
+    if (vaccineDatabase.m_oldTable == nullptr && initialPointer != finalPointer && initialCapacity != finalCapacity) {
+        return true;
+    }
     return false;
 }
 
 bool Tester::testRehashAfterRemoval() {
-    //TODO: Test the rehashing is triggered after a descent number of data removal.
+    //insert a large number of non-colliding data points into the hash table
+    VacDB vaccineDatabase(MINPRIME, hashFunction, DOUBLEHASH);
+    vector<Patient> patientVector = insertMultiplePatients(vaccineDatabase, 25);
 
+    //remove 21 nodes (size * 0.8 + 1, exact number to trigger rehash)
+    for (int i = 0; i < 20; i++) {
+        vaccineDatabase.remove(vaccineDatabase.getPatient(patientVector[i].getKey(),patientVector[i].getSerial()));
+    }
+
+    //check whether rehash has been triggered
+    if (vaccineDatabase.m_oldTable != nullptr && vaccineDatabase.m_transferIndex != -1) {
+        return true;
+    }
     return false;
 }
 
 bool Tester::testRehashCompletionFromDeletedRatio() {
-    //TODO: Test the rehash completion after triggering rehash due to delete ratio, i.e. all live data is transferred to the new table and the old table is removed.
+    VacDB vaccineDatabase(MINPRIME, hashFunction, DOUBLEHASH);
+    vector<Patient> patientVector = insertMultiplePatients(vaccineDatabase, 200);
 
+    Patient** initialPointer = vaccineDatabase.m_currentTable;
+    int initialCapacity = vaccineDatabase.m_currentCap;
+
+    //delete a large number of nodes so that rehash will finish
+    for (int i = 0; i < 500; i++) {
+        vaccineDatabase.remove(vaccineDatabase.getPatient(patientVector[i].getKey(),patientVector[i].getSerial()));
+    }
+
+    Patient** finalPointer = vaccineDatabase.m_currentTable;
+    int finalCapacity = vaccineDatabase.m_currentCap;
+
+    //old table should be removed, pointer and capacity of the table before and after should be different
+    if (vaccineDatabase.m_oldTable == nullptr && initialPointer != finalPointer && initialCapacity != finalCapacity) {
+        return true;
+    }
     return false;
 }
 
@@ -383,57 +428,57 @@ int main() {
         cout << "\t***Test failed!***" << endl;
     }
 
-    cout << "\nTesting getPatient (error) - ___:" << endl;
+    cout << "\nTesting getPatient (error):" << endl;
     if (tester.testFindError()) {
         cout << "\tTest passed!" << endl;
     } else {
         cout << "\t***Test failed!***" << endl;
     }
-    cout << "Testing getPatient (non-colliding data) - ___:" << endl;
+    cout << "Testing getPatient (non-colliding data):" << endl;
     if (tester.testFindWithNonCollidingKeys()) {
         cout << "\tTest passed!" << endl;
     } else {
         cout << "\t***Test failed!***" << endl;
     }
-    cout << "Testing getPatient (colliding data) - ___:" << endl;
+    cout << "Testing getPatient (colliding data):" << endl;
     if (tester.testFindWithCollidingKeys()) {
         cout << "\tTest passed!" << endl;
     } else {
         cout << "\t***Test failed!***" << endl;
     }
 
-    cout << "\nTesting remove (non-colliding data) - ___:" << endl;
+    cout << "\nTesting remove (non-colliding data):" << endl;
     if (tester.testRemoveWithNonCollidingKeys()) {
         cout << "\tTest passed!" << endl;
     } else {
         cout << "\t***Test failed!***" << endl;
     }
-    cout << "Testing remove (colliding data) - ___:" << endl;
+    cout << "Testing remove (colliding data):" << endl;
     if (tester.testRemoveWithCollidingKeys()) {
         cout << "\tTest passed!" << endl;
     } else {
         cout << "\t***Test failed!***" << endl;
     }
 
-    cout << "\nTesting rehash (after insertion) - ___:" << endl;
+    cout << "\nTesting rehash (after insertion):" << endl;
     if (tester.testRehashAfterInsertion()) {
         cout << "\tTest passed!" << endl;
     } else {
         cout << "\t***Test failed!***" << endl;
     }
-    cout << "Testing rehash completion - ___:" << endl;
+    cout << "Testing rehash completion (triggered by load factor):" << endl;
     if (tester.testRehashCompletionFromLoadFactor()) {
         cout << "\tTest passed!" << endl;
     } else {
         cout << "\t***Test failed!***" << endl;
     }
-    cout << "Testing rehash (after removal) - ___:" << endl;
+    cout << "Testing rehash (after removal):" << endl;
     if (tester.testRehashAfterRemoval()) {
         cout << "\tTest passed!" << endl;
     } else {
         cout << "\t***Test failed!***" << endl;
     }
-    cout << "Testing rehash completion - ___:" << endl;
+    cout << "Testing rehash completion (triggered by deleted ratio):" << endl;
     if (tester.testRehashCompletionFromDeletedRatio()) {
         cout << "\tTest passed!" << endl;
     } else {
