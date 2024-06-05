@@ -1,0 +1,114 @@
+CMSC341 Project 4 Gradesheet 
+---------------------------------------------------------------------------
+Student ID: mnarend1
+
+Max grade: 100 
+Raw grade: 89
+Late penalty: 0
+Total grade: 89
+
+(Total grade = Raw grade - Late penalty)
+
+
+Issues, comments, notes and deductions marked by an 'X' are the ones
+that apply to your project submission.
+
+
+General comments: Great job with your project. Make sure to clear memory in your mytest.cpp.
+
+
+
+
+---------------------------------------------------------------------------
+
+Scripted notes and deductions:
+
+
+Checking files
+
+ X == -0: vacdb.cpp found
+ X == -0: mytest.cpp found
+
+Compile and Run Unit Tests
+
+ X == -0: No errors in unit test HTInsertBasic
+ X == -0: No errors in unit test HTInsertCollisionQuad
+ X == -0: No errors in unit test HTInsertCollisionDouble
+ X == -0: No errors in unit test HTInsertCollisionLinear
+ X == -0: No errors in unit test HTInsertionRehashSamePolicy
+ X == -0: No errors in unit test HTInsertionRehashPolicyChange
+ X == -0: No errors in unit test HTRemoveBasic
+ X == -2: failed unit test HTRemoveRehashSamePolicy
+ X == -2: failed unit test HTRemoveRehashPolicyChange
+ X == -0: No errors in unit test HTGetNodeBasic
+ X == -0: No errors in unit test HTGetNodeCollision
+ X == -0: No errors in unit test HTGetNonexistentNode
+ X == -0: No errors in unit test HTGetNodeWhileRehash
+ X == -2: failed unit test HTUpdateNodesNormalCase
+ X == -2: failed unit test HTUpdateNodesWhileRehash
+
+Compile and Run mytest.cpp
+
+ X == -0: Student test program (mytest.cpp) ran to completion.
+ X == -3: Student test program (mytest.cpp) has memory leaks.
+ X == -0: Student test program (mytest.cpp) ran without memory errors.
+
+---------------------------------------------------------------------------
+
+I. Effort Grading
+
+   Program does not compile or does not run, or runs but does not
+   produce output even after minor tweaks. Grading based on effort.
+   Deductions from scripted grading and deductions marked below are
+   ignored. Late penalties still apply.
+
+   Choose one only:
+
+   ~~  60:  Removing one or two major bugs will fix this project.
+   ~~  45:  Significant progress made, but major rewrite is necessary.
+   ~~  30:  Not much progress made. 
+   ~~  15:  Barely started coding. 
+   ~~   0:  Morally equivalent to no submission.
+   
+           Comment:
+
+
+---------------------------------------------------------------------------
+
+II. Tests in mytest.cpp
+
+   == -1: Test insertion operation works correctly
+   == -2: Test insertion operation works correctly with colliding keys
+   == -1: Test remove operation works correctly
+   == -2: Test remove operation works correctly with colliding keys
+   == -2: Test rehash triggers once load factor passes 0.5 and rehash completes  
+   == -2: Test rehash triggers once deleted ratio passes 0.8 and rehash completes
+   == -2: Test the find operation (getPatient function) works correctly
+   == -2: Test the find operation (getPatient function) for error case (car does not exist)
+   == -2: Test find operation works correctly with colliding keys
+   == -2: Test change of probing policy works correctly transfers the data to the correct buckets
+
+
+          Comment: Good job with testing for all test cases.
+
+
+---------------------------------------------------------------------------
+
+IV. Coding Standards
+
+ X == -0:  Good indentation, comments, and choice of variable names
+
+   == -2:  Poor or inconsistent indentation
+
+   == -2:  Program uses global variables or static data members in lieu of 
+           parameters and return values
+
+   == -2:  In-line comments are terse and not meaningful
+   == -3:  In-line comments are non-existent
+
+   == -1:  Poor choice of variable names
+   
+           Comment: Good coding standards used.
+
+
+---------------------------------------------------------------------------
